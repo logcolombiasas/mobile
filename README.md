@@ -1,13 +1,13 @@
 # Logcolombia Placas (app móvil)
 
-App Android / iOS para **moderadores** de Logcolombia: usa la cámara para leer en tiempo real
+App Android / iOS para **operarios** de Logcolombia: usa la cámara para leer en tiempo real
 las placas de los vehículos, las valida contra el listado de **placas buscadas** que se administra
 en el panel web y, si una placa está en el listado, **alerta de inmediato** (pantalla roja, sirena y
 vibración) para iniciar la gestión de captura del vehículo.
 
 - No hay registro: los usuarios se crean en Cognito (el mismo backend Amplify del panel web
   [`logcolombiasas/logcolombia`](https://github.com/logcolombiasas/logcolombia), que es solo la parte administrativa).
-- Solo los usuarios del grupo **`moderador`** (o `admin`) pueden usar el escáner.
+- Solo los usuarios del grupo **`operario`** (o `admin`) pueden usar el escáner.
 
 ## Stack
 
@@ -16,7 +16,7 @@ vibración) para iniciar la gestión de captura del vehículo.
 | App multiplataforma | React Native + **Expo** (SDK 57) con *development builds* / EAS |
 | Cámara en tiempo real | `react-native-vision-camera` v5 (frame processors) |
 | OCR en el dispositivo | Google ML Kit vía `react-native-vision-camera-ocr-plus` (sin internet, sin costo por lectura) |
-| Autenticación | Amplify JS v6 + Cognito (grupos `moderador` / `admin`) |
+| Autenticación | Amplify JS v6 + Cognito (grupos `operario` / `admin`) |
 | Endpoint de validación | Query GraphQL `checkPlate` en AppSync (backend Amplify del panel web) |
 | Registro de alertas | Modelo `PlateDetection` (el panel web lo recibe en tiempo real) |
 
@@ -38,7 +38,7 @@ vibración) para iniciar la gestión de captura del vehículo.
    consultarla (evita lecturas falsas) y luego la deja en espera 60 s.
 4. Se consulta `checkPlate`. Las placas que **no** están se recuerdan 2 min para no repetir consultas.
 5. Si la placa está en el listado: alerta a pantalla completa, sirena y vibración, y se crea un
-   `PlateDetection` con la ubicación GPS y el correo del moderador. El moderador marca
+   `PlateDetection` con la ubicación GPS y el correo del operario. El operario marca
    **"Iniciar gestión de captura"** (`en_gestion`) o **"Falso positivo"**.
 
 También se puede **digitar la placa** manualmente (placas sucias, de noche, etc.) y encender la linterna.
@@ -47,7 +47,7 @@ También se puede **digitar la placa** manualmente (placas sucias, de noche, etc
 
 - Node 22+
 - Backend del panel web desplegado con el módulo de placas (modelos `WantedPlate`, `PlateDetection`,
-  query `checkPlate` y grupo `moderador`).
+  query `checkPlate` y grupo `operario`).
 - Cuenta de [Expo](https://expo.dev) para compilar con EAS.
 
 ## Configuración
@@ -90,12 +90,12 @@ npm run build:ios                # build para TestFlight / App Store (perfil "pr
 > `amplify_outputs.json` está en `.gitignore`. Para EAS súbelo como *file secret* o quítalo del
 > `.gitignore` en una rama privada antes de compilar.
 
-## Crear usuarios moderadores
+## Usuarios operarios
 
 En la consola de AWS → Cognito → User pool del proyecto:
 
-1. *Create user* con el correo del moderador y una contraseña temporal.
-2. Agregarlo al grupo **`moderador`**.
+1. *Create user* con el correo del operario y una contraseña temporal.
+2. Agregarlo al grupo **`operario`**.
 3. En el primer ingreso la app le pedirá definir una contraseña nueva.
 
 O con AWS CLI:
@@ -103,7 +103,7 @@ O con AWS CLI:
 ```bash
 aws cognito-idp admin-create-user --user-pool-id <POOL_ID> --username correo@dominio.com \
   --user-attributes Name=email,Value=correo@dominio.com Name=email_verified,Value=true
-aws cognito-idp admin-add-user-to-group --user-pool-id <POOL_ID> --username correo@dominio.com --group-name moderador
+aws cognito-idp admin-add-user-to-group --user-pool-id <POOL_ID> --username correo@dominio.com --group-name operario
 ```
 
 ## Scripts

@@ -9,7 +9,7 @@ import {
 } from 'aws-amplify/auth';
 
 /** Roles que pueden usar la app de escaneo */
-export const ALLOWED_GROUPS = ['moderador', 'admin'];
+export const ALLOWED_GROUPS = ['operario', 'admin'];
 
 type AuthState =
   | { status: 'loading' }

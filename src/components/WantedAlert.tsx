@@ -34,7 +34,7 @@ export function WantedAlert({ hit, email, onClose }: { hit: WantedHit; email: st
   const { result } = hit;
 
   useEffect(() => {
-    // Alarma sonora + vibración hasta que el moderador responda
+    // Alarma sonora + vibración hasta que el operario responda
     setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
     player.loop = true;
     player.play();
