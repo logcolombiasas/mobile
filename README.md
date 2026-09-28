@@ -87,8 +87,8 @@ npm run build:apk                # APK instalable (perfil "preview")
 npm run build:ios                # build para TestFlight / App Store (perfil "production")
 ```
 
-> `amplify_outputs.json` está en `.gitignore`. Para EAS súbelo como *file secret* o quítalo del
-> `.gitignore` en una rama privada antes de compilar.
+> `amplify_outputs.json` no se sube a git (`.gitignore`), pero sí se envía a EAS al compilar
+> gracias a `.easignore`. Basta con que exista en la carpeta del proyecto antes de `npm run build:apk`.
 
 ## Usuarios operarios
 
