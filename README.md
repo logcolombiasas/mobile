@@ -7,8 +7,8 @@ las placas de los vehículos, las valida contra el listado de **placas buscadas*
 en el panel web y, si una placa está en el listado, **alerta de inmediato** (pantalla roja, sirena y
 vibración) para iniciar la gestión de captura del vehículo.
 
-- No hay registro: los usuarios se crean en Cognito (el mismo backend Amplify del panel web
-  [`logcolombiasas/logcolombia`](https://github.com/logcolombiasas/logcolombia), que es solo la parte administrativa).
+- No hay registro: los usuarios se crean en Cognito del backend de **SIA Admin** (panel web y
+  backend Amplify del sistema de placas, repositorio `sia-admin`).
 - Dos modos según el grupo del usuario:
   - **`operario`** (o `admin`): escanea con el celular en la calle; alerta a pantalla completa.
   - **`camara`**: **cámara fija** (ej. un celular instalado en un parqueadero). Escanea de forma
@@ -74,7 +74,7 @@ vuelve a la cámara del celular.
 
 ## Modo cámara fija (parqueaderos)
 
-1. Crear en Cognito un usuario por dispositivo (ej. `camara.calle80@logcolombia.com`) y agregarlo
+1. Crear en Cognito un usuario por dispositivo (ej. `camara.calle80@correo.com`) y agregarlo
    al grupo **`camara`**.
 2. Iniciar sesión con ese usuario en el celular que quedará fijo.
 3. La primera vez la app pide el **nombre del lugar** (ej. "Parqueadero Calle 80 - Entrada") y
@@ -100,8 +100,8 @@ npm install
 AMPLIFY_APP_ID=<id de la app en Amplify> AMPLIFY_BRANCH=main npm run amplify:outputs
 ```
 
-> También puedes copiar el `amplify_outputs.json` del repositorio administrativo (`logcolombiasas/logcolombia`)
-> después de desplegar el backend. Ver `amplify_outputs.example.json` como referencia.
+> O descárgalo de la consola de Amplify: app **SIA Admin** → rama `main` → *Deployed backend
+> resources* → **Download amplify_outputs.json**. Ver `amplify_outputs.example.json` como referencia.
 
 ## Desarrollo
 
