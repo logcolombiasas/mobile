@@ -1,11 +1,12 @@
 import { ComponentType, useCallback, useEffect, useMemo, useState } from 'react';
-import { AppState, Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AppState, Linking, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useKeepAwake } from 'expo-keep-awake';
 import * as Location from 'expo-location';
-import { type CameraViewProps, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
+import { type CameraViewProps, useCameraPermission } from 'react-native-vision-camera';
 import { Camera, type Text as OcrResult, type TextRecognitionOptions } from 'react-native-vision-camera-ocr-plus';
 import { useAuth } from '../auth/AuthContext';
+import { useScannerCamera } from '../camera/useScannerCamera';
 import { Button, PlateBadge } from '../components/ui';
 import { WantedAlert } from '../components/WantedAlert';
 import { normalizeText } from '../plates/plateParser';
@@ -24,7 +25,8 @@ export function ScannerScreen() {
   useKeepAwake();
   const { state, signOut } = useAuth();
   const email = state.status === 'signedIn' ? state.email : '';
-  const device = useCameraDevice('back');
+  const { device, options: cameraOptions, current: currentCamera, selectCamera } = useScannerCamera();
+  const [cameraPicker, setCameraPicker] = useState(false);
   const { hasPermission, canRequestPermission, requestPermission } = useCameraPermission();
 
   const [paused, setPaused] = useState(false);
@@ -71,7 +73,8 @@ export function ScannerScreen() {
           style={StyleSheet.absoluteFill}
           device={device}
           isActive={scanning}
-          torchMode={torch ? 'on' : 'off'}
+          key={device.id}
+          torchMode={torch && device.hasTorch ? 'on' : 'off'}
           enableNativeZoomGesture
           enableNativeTapToFocusGesture
           mode="recognize"
@@ -80,7 +83,7 @@ export function ScannerScreen() {
         />
       ) : (
         <View style={[StyleSheet.absoluteFill, styles.center]}>
-          <Text style={styles.permText}>No se encontró una cámara trasera.</Text>
+          <Text style={styles.permText}>No se encontró ninguna cámara.</Text>
         </View>
       )}
 
@@ -91,9 +94,14 @@ export function ScannerScreen() {
             <Text style={styles.brand}>Logcolombia Placas</Text>
             <Text style={styles.email} numberOfLines={1}>{email}</Text>
           </View>
-          <Pressable style={styles.iconBtn} onPress={() => setTorch(t => !t)}>
-            <Text style={styles.iconText}>{torch ? '🔦' : '💡'}</Text>
+          <Pressable style={styles.iconBtn} onPress={() => setCameraPicker(true)}>
+            <Text style={styles.iconText}>📷</Text>
           </Pressable>
+          {device?.hasTorch && (
+            <Pressable style={styles.iconBtn} onPress={() => setTorch(t => !t)}>
+              <Text style={styles.iconText}>{torch ? '🔦' : '💡'}</Text>
+            </Pressable>
+          )}
           <Pressable style={styles.iconBtn} onPress={signOut}>
             <Text style={styles.iconText}>⎋</Text>
           </Pressable>
@@ -105,6 +113,13 @@ export function ScannerScreen() {
             {scanning ? 'Escaneando placas...' : paused ? 'En pausa' : 'Cámara detenida'} · {queries} consultas
           </Text>
         </View>
+        {currentCamera && (
+          <Pressable onPress={() => setCameraPicker(true)} style={styles.cameraChip}>
+            <Text style={styles.cameraChipText}>
+              {currentCamera.external ? '🔌 ' : '📱 '}{currentCamera.label}
+            </Text>
+          </Pressable>
+        )}
         {networkError && (
           <View style={styles.networkBanner}>
             <Text style={styles.networkText}>Sin conexión con el servidor. Reintentando en la próxima lectura…</Text>
@@ -162,6 +177,29 @@ export function ScannerScreen() {
         </View>
       </SafeAreaView>
 
+      <Modal visible={cameraPicker} transparent animationType="slide" onRequestClose={() => setCameraPicker(false)}>
+        <Pressable style={styles.sheetBackdrop} onPress={() => setCameraPicker(false)}>
+          <Pressable style={styles.sheet}>
+            <Text style={styles.sheetTitle}>Cámara para escanear</Text>
+            {cameraOptions.map(option => (
+              <Pressable
+                key={option.id}
+                style={[styles.sheetItem, option.id === device?.id && styles.sheetItemActive]}
+                onPress={() => { selectCamera(option.id); setTorch(false); setCameraPicker(false); }}
+              >
+                <Text style={styles.sheetItemText}>{option.external ? '🔌 ' : '📱 '}{option.label}</Text>
+                {option.id === device?.id && <Text style={styles.sheetCheck}>✓</Text>}
+              </Pressable>
+            ))}
+            <Text style={styles.sheetHint}>
+              Puedes conectar una cámara USB (webcam, capturadora HDMI→USB o una GoPro en modo webcam).
+              Al conectarla, la app cambia a ella automáticamente. En iPhone solo están disponibles las
+              cámaras del celular.
+            </Text>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {alerts[0] && (
         <WantedAlert
           key={alerts[0].result.plate + alerts[0].at}
@@ -188,6 +226,19 @@ const styles = StyleSheet.create({
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, marginTop: 8 },
   dot: { width: 10, height: 10, borderRadius: 5 },
   statusText: { color: '#fff', fontWeight: '600', textShadowColor: '#000', textShadowRadius: 4 },
+  cameraChip: {
+    alignSelf: 'flex-start', marginLeft: 16, marginTop: 6, paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: 12, backgroundColor: 'rgba(0,0,0,.5)',
+  },
+  cameraChipText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  sheetBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,.5)' },
+  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 36, gap: 6 },
+  sheetTitle: { fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: 6 },
+  sheetItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 12, borderRadius: 10 },
+  sheetItemActive: { backgroundColor: '#e0ecff' },
+  sheetItemText: { flex: 1, fontSize: 16, color: colors.text },
+  sheetCheck: { fontSize: 18, color: colors.primary, fontWeight: '800' },
+  sheetHint: { fontSize: 12, color: colors.muted, marginTop: 8 },
   networkBanner: { marginHorizontal: 16, marginTop: 8, backgroundColor: '#f59e0b', borderRadius: 8, padding: 8 },
   networkText: { color: '#111', fontWeight: '600', fontSize: 12 },
   guideWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },

@@ -43,6 +43,22 @@ vibración) para iniciar la gestión de captura del vehículo.
 
 También se puede **digitar la placa** manualmente (placas sucias, de noche, etc.) y encender la linterna.
 
+## Cámaras compatibles
+
+Con el botón 📷 se elige la cámara. La elección se recuerda entre sesiones.
+
+| Cámara | Android | iPhone |
+|---|---|---|
+| Cámaras del celular (principal, gran angular, teleobjetivo, frontal) | ✅ | ✅ |
+| Webcam USB (UVC) | ✅ si el celular soporta cámaras externas* | ❌ (iOS no lo permite en iPhone) |
+| Cualquier cámara con salida HDMI (GoPro, cámara de tablero, videocámara) + capturadora HDMI→USB | ✅* | ❌ |
+| GoPro en modo webcam por USB | ✅* si el modelo funciona como webcam UVC estándar | ❌ |
+
+\* Android expone cámaras USB externas en muchos celulares recientes (Android 10+, con USB-C OTG),
+pero depende del fabricante. Para comprobarlo, conecta la cámara: si aparece en la lista como
+"🔌 Externa", funciona. Al conectarla la app cambia a ella automáticamente, y si se desconecta
+vuelve a la cámara del celular.
+
 ## Requisitos
 
 - Node 22+
@@ -128,5 +144,6 @@ src/plates/plateParser.ts    Extracción y corrección de placas colombianas
 src/plates/PlateTracker.ts   Confirmación por lecturas repetidas y cooldown
 src/plates/usePlateScanner.ts Orquesta OCR → confirmación → consulta → alerta
 src/screens/ScannerScreen.tsx Cámara + OCR en tiempo real
+src/camera/                  Selección de cámara (celular / USB externa)
 src/components/WantedAlert.tsx Alerta de vehículo buscado
 ```
