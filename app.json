@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "Logcolombia Placas",
-    "slug": "logcolombia-placas",
-    "scheme": "logcolombiaplacas",
+    "name": "SIA Placas",
+    "slug": "sia-placas",
+    "scheme": "siaplacas",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "bundleIdentifier": "com.logcolombia.placas",
+      "bundleIdentifier": "com.sia.placas",
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "La cámara se usa para leer las placas de los vehículos en tiempo real.",
@@ -17,7 +17,7 @@
       }
     },
     "android": {
-      "package": "com.logcolombia.placas",
+      "package": "com.sia.placas",
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.VIBRATE",
@@ -25,7 +25,7 @@
         "android.permission.ACCESS_FINE_LOCATION"
       ],
       "adaptiveIcon": {
-        "backgroundColor": "#0F2B4C",
+        "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -48,7 +48,16 @@
           }
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 240,
+          "resizeMode": "contain",
+          "backgroundColor": "#FFFFFF"
+        }
+      ]
     ]
   }
 }

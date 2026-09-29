@@ -35,8 +35,8 @@ export function LoginScreen() {
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
         <View style={styles.header}>
-          <Image source={require('../../assets/icon.png')} style={styles.logo} />
-          <Text style={styles.title}>Logcolombia Placas</Text>
+          <Image source={require('../../assets/logo_dark.png')} style={styles.logo} resizeMode="contain" />
+          <Text style={styles.title}>Placas</Text>
           <Text style={styles.subtitle}>
             {newPassword ? 'Es tu primer ingreso: define una nueva contraseña.' : 'Ingresa con el usuario asignado por el administrador.'}
           </Text>
@@ -57,7 +57,7 @@ export function LoginScreen() {
                 autoCapitalize="none"
                 autoComplete="email"
                 keyboardType="email-address"
-                placeholder="usuario@logcolombia.com"
+                placeholder="usuario@correo.com"
               />
               <TextField label="Contraseña" secureTextEntry value={password} onChangeText={setPassword} onSubmitEditing={submit} />
             </>
@@ -79,9 +79,9 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.primaryDark },
   container: { flex: 1, justifyContent: 'center', padding: 20 },
   header: { alignItems: 'center', marginBottom: 24 },
-  logo: { width: 72, height: 72, borderRadius: 16, marginBottom: 12 },
-  title: { fontSize: 26, fontWeight: '800', color: '#fff' },
+  logo: { width: 280, height: 122, marginBottom: 8 },
+  title: { fontSize: 22, fontWeight: '800', color: '#fff', letterSpacing: 4, textTransform: 'uppercase' },
   subtitle: { fontSize: 14, color: '#cbd5e1', textAlign: 'center', marginTop: 6 },
-  card: { backgroundColor: '#f8fafc', borderRadius: 18, padding: 20 },
+  card: { backgroundColor: '#f8fafc', borderRadius: 18, padding: 20, borderTopWidth: 4, borderTopColor: colors.primary },
   error: { color: colors.danger, marginBottom: 12, fontWeight: '600' },
 });

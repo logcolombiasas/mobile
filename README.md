@@ -1,6 +1,8 @@
-# Logcolombia Placas (app móvil)
+# SIA Placas (app móvil)
 
-App Android / iOS para **operarios** de Logcolombia: usa la cámara para leer en tiempo real
+![SIA - Servicios Integrados Automotriz](assets/logo.png)
+
+App Android / iOS de **SIA - Servicios Integrados Automotriz S.A.S.** para **operarios**: usa la cámara para leer en tiempo real
 las placas de los vehículos, las valida contra el listado de **placas buscadas** que se administra
 en el panel web y, si una placa está en el listado, **alerta de inmediato** (pantalla roja, sirena y
 vibración) para iniciar la gestión de captura del vehículo.

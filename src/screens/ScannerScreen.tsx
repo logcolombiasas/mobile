@@ -1,5 +1,5 @@
 import { ComponentType, useCallback, useEffect, useMemo, useState } from 'react';
-import { AppState, Linking, Modal, Pressable, StyleSheet, Text, TextInput, Vibration, View } from 'react-native';
+import { AppState, Image, Linking, Modal, Pressable, StyleSheet, Text, TextInput, Vibration, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useKeepAwake } from 'expo-keep-awake';
 import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
@@ -159,7 +159,9 @@ export function ScannerScreen({ mode }: { mode: ScanMode }) {
         {/* Encabezado */}
         <View style={styles.topBar}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.brand}>{fixed ? '📹 Cámara fija' : 'Logcolombia Placas'}</Text>
+            {fixed
+              ? <Text style={styles.brand}>📹 Cámara fija</Text>
+              : <Image source={require('../../assets/logo_dark.png')} style={styles.logo} resizeMode="contain" />}
             <Text style={styles.email} numberOfLines={1}>{fixed ? site?.name ?? 'Sin configurar' : email}</Text>
           </View>
           {fixed && (
@@ -322,6 +324,7 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'space-between' },
   topBar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingTop: 8 },
   brand: { color: '#fff', fontSize: 18, fontWeight: '800' },
+  logo: { width: 120, height: 52 },
   email: { color: '#cbd5e1', fontSize: 12 },
   iconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,.45)', alignItems: 'center', justifyContent: 'center' },
   iconText: { color: '#fff', fontSize: 20 },
@@ -337,7 +340,7 @@ const styles = StyleSheet.create({
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 36, gap: 6 },
   sheetTitle: { fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: 6 },
   sheetItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 12, borderRadius: 10 },
-  sheetItemActive: { backgroundColor: '#e0ecff' },
+  sheetItemActive: { backgroundColor: '#fde8e9' },
   sheetItemText: { flex: 1, fontSize: 16, color: colors.text },
   sheetCheck: { fontSize: 18, color: colors.primary, fontWeight: '800' },
   sheetHint: { fontSize: 12, color: colors.muted, marginTop: 8 },
@@ -351,8 +354,8 @@ const styles = StyleSheet.create({
   networkBanner: { marginHorizontal: 16, marginTop: 8, backgroundColor: '#f59e0b', borderRadius: 8, padding: 8 },
   networkText: { color: '#111', fontWeight: '600', fontSize: 12 },
   guideWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  guide: { width: '78%', aspectRatio: 3.2, borderWidth: 3, borderColor: 'rgba(255,212,0,.9)', borderRadius: 12 },
-  panel: { backgroundColor: 'rgba(15,23,42,.88)', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, gap: 10 },
+  guide: { width: '78%', aspectRatio: 3.2, borderWidth: 3, borderColor: 'rgba(237,28,36,.9)', borderRadius: 12 },
+  panel: { backgroundColor: 'rgba(5,7,7,.88)', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, gap: 10 },
   manualRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   manualInput: {
     flex: 1, height: 44, borderRadius: 10, backgroundColor: '#1e293b', color: '#fff',
