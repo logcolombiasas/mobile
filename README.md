@@ -8,7 +8,7 @@ en el panel web y, si una placa está en el listado, **alerta de inmediato** (pa
 vibración) para iniciar la gestión de captura del vehículo.
 
 - No hay registro: los usuarios se crean en Cognito del backend de **SIA Admin** (panel web y
-  backend Amplify del sistema de placas, repositorio `sia-admin`).
+  backend Amplify del sistema de placas: [`logcolombiasas/sia-admin`](https://github.com/logcolombiasas/sia-admin)).
 - Dos modos según el grupo del usuario:
   - **`operario`** (o `admin`): escanea con el celular en la calle; alerta a pantalla completa.
   - **`camara`**: **cámara fija** (ej. un celular instalado en un parqueadero). Escanea de forma
