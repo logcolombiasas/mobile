@@ -43,7 +43,10 @@ export function WantedAlert({ hit, email, onClose }: { hit: WantedHit; email: st
 
     // Se registra la detección de inmediato para que el panel web la vea en tiempo real
     detectionId.current = (async () => {
-      const coords = await currentPosition();
+      const { context } = hit;
+      const coords = context.latitude != null && context.longitude != null
+        ? { latitude: context.latitude, longitude: context.longitude }
+        : await currentPosition();
       try {
         return await createDetection({
           plate: result.plate,
@@ -51,6 +54,8 @@ export function WantedAlert({ hit, email, onClose }: { hit: WantedHit; email: st
           wantedPlateId: result.id,
           latitude: coords?.latitude,
           longitude: coords?.longitude,
+          locationName: context.locationName,
+          sourceType: context.sourceType,
           detectedBy: email,
         });
       } catch (e) {

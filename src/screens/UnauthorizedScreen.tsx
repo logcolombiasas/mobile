@@ -12,7 +12,7 @@ export function UnauthorizedScreen() {
         <Text style={styles.icon}>🔒</Text>
         <Text style={styles.title}>Sin permisos</Text>
         <Text style={styles.text}>
-          El usuario {state.status === 'signedIn' ? state.email : ''} no tiene el rol de operario.
+          El usuario {state.status === 'signedIn' ? state.email : ''} no tiene el rol de operario ni de cámara fija.
           Solicita al administrador que te asigne el rol para usar el escáner de placas.
         </Text>
         <Button title="Cerrar sesión" variant="secondary" onPress={signOut} />

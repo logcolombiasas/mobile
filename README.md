@@ -7,7 +7,14 @@ vibración) para iniciar la gestión de captura del vehículo.
 
 - No hay registro: los usuarios se crean en Cognito (el mismo backend Amplify del panel web
   [`logcolombiasas/logcolombia`](https://github.com/logcolombiasas/logcolombia), que es solo la parte administrativa).
-- Solo los usuarios del grupo **`operario`** (o `admin`) pueden usar el escáner.
+- Dos modos según el grupo del usuario:
+  - **`operario`** (o `admin`): escanea con el celular en la calle; alerta a pantalla completa.
+  - **`camara`**: **cámara fija** (ej. un celular instalado en un parqueadero). Escanea de forma
+    continua, registra cada detección con el nombre del lugar y el administrador recibe la
+    notificación en el panel web sin que nadie tenga que operar el dispositivo.
+- **Todas** las placas leídas quedan en un historial (estén o no en el listado), para saber dónde se
+  ha visto un vehículo antes de que su placa entre al listado. Se consulta en el panel web en
+  *Placas → Historial de placas*.
 
 ## Stack
 
@@ -16,8 +23,8 @@ vibración) para iniciar la gestión de captura del vehículo.
 | App multiplataforma | React Native + **Expo** (SDK 57) con *development builds* / EAS |
 | Cámara en tiempo real | `react-native-vision-camera` v5 (frame processors) |
 | OCR en el dispositivo | Google ML Kit vía `react-native-vision-camera-ocr-plus` (sin internet, sin costo por lectura) |
-| Autenticación | Amplify JS v6 + Cognito (grupos `operario` / `admin`) |
-| Endpoint de validación | Query GraphQL `checkPlate` en AppSync (backend Amplify del panel web) |
+| Autenticación | Amplify JS v6 + Cognito (grupos `operario` / `admin` / `camara`) |
+| Endpoint de validación | Mutation GraphQL `reportSighting` en AppSync: verifica la placa y la guarda en el historial |
 | Registro de alertas | Modelo `PlateDetection` (el panel web lo recibe en tiempo real) |
 
 ### ¿Por qué React Native (Expo) y no Flutter / nativo?
@@ -35,11 +42,15 @@ vibración) para iniciar la gestión de captura del vehículo.
    `ABC123` (carro), `ABC12D` (moto) y `ABC12` (moto antigua), corrigiendo confusiones típicas del
    OCR según la posición (O↔0, I↔1, B↔8, S↔5…) y descartando texto como "BOGOTÁ D.C.".
 3. `src/plates/PlateTracker.ts` exige que la misma placa se lea **2 veces en 2,5 s** antes de
-   consultarla (evita lecturas falsas) y luego la deja en espera 60 s.
-4. Se consulta `checkPlate`. Las placas que **no** están se recuerdan 2 min para no repetir consultas.
-5. Si la placa está en el listado: alerta a pantalla completa, sirena y vibración, y se crea un
-   `PlateDetection` con la ubicación GPS y el correo del operario. El operario marca
-   **"Iniciar gestión de captura"** (`en_gestion`) o **"Falso positivo"**.
+   consultarla (evita lecturas falsas) y luego la deja en espera (60 s con celular, 10 min en
+   cámara fija, para no repetir el mismo carro estacionado).
+4. Se llama a `reportSighting` con la ubicación (GPS del celular o lugar de la cámara fija): el
+   backend responde si está en el listado y guarda la lectura en el historial.
+5. Si la placa está en el listado:
+   - **Operario**: alerta a pantalla completa, sirena y vibración, y se crea un `PlateDetection`
+     con la ubicación. El operario marca **"Iniciar gestión de captura"** o **"Falso positivo"**.
+   - **Cámara fija**: suena una alerta corta, se crea el `PlateDetection` con el nombre del lugar
+     y la cámara sigue escaneando. El administrador recibe la notificación en el panel web.
 
 También se puede **digitar la placa** manualmente (placas sucias, de noche, etc.) y encender la linterna.
 
@@ -59,11 +70,23 @@ pero depende del fabricante. Para comprobarlo, conecta la cámara: si aparece en
 "🔌 Externa", funciona. Al conectarla la app cambia a ella automáticamente, y si se desconecta
 vuelve a la cámara del celular.
 
+## Modo cámara fija (parqueaderos)
+
+1. Crear en Cognito un usuario por dispositivo (ej. `camara.calle80@logcolombia.com`) y agregarlo
+   al grupo **`camara`**.
+2. Iniciar sesión con ese usuario en el celular que quedará fijo.
+3. La primera vez la app pide el **nombre del lugar** (ej. "Parqueadero Calle 80 - Entrada") y
+   toma la ubicación GPS. Se puede cambiar con el botón ⚙️.
+4. Recomendado: celular conectado al cargador, en un soporte fijo apuntando a la entrada/salida,
+   con WiFi o datos, y con **fijación de pantalla** de Android activada (Ajustes → Seguridad →
+   Fijar app) para que la app no se cierre. Se puede usar una cámara USB o HDMI (ver abajo) para
+   mejor alcance.
+
 ## Requisitos
 
 - Node 22+
 - Backend del panel web desplegado con el módulo de placas (modelos `WantedPlate`, `PlateDetection`,
-  query `checkPlate` y grupo `operario`).
+  `PlateSighting`, mutation `reportSighting` y grupos `operario` / `camara`).
 - Cuenta de [Expo](https://expo.dev) para compilar con EAS.
 
 ## Configuración
@@ -106,12 +129,12 @@ npm run build:ios                # build para TestFlight / App Store (perfil "pr
 > `amplify_outputs.json` no se sube a git (`.gitignore`), pero sí se envía a EAS al compilar
 > gracias a `.easignore`. Basta con que exista en la carpeta del proyecto antes de `npm run build:apk`.
 
-## Usuarios operarios
+## Usuarios operarios y cámaras
 
 En la consola de AWS → Cognito → User pool del proyecto:
 
 1. *Create user* con el correo del operario y una contraseña temporal.
-2. Agregarlo al grupo **`operario`**.
+2. Agregarlo al grupo **`operario`** (o **`camara`** para un dispositivo fijo).
 3. En el primer ingreso la app le pedirá definir una contraseña nueva.
 
 O con AWS CLI:
@@ -139,11 +162,14 @@ aws cognito-idp admin-add-user-to-group --user-pool-id <POOL_ID> --username corr
 App.tsx                      Raíz: login → sin permisos → escáner
 src/config/amplify.ts        Configuración de Amplify
 src/auth/AuthContext.tsx     Sesión Cognito, grupos y cambio de contraseña inicial
-src/api/plates.ts            checkPlate / createPlateDetection / updatePlateDetection
+src/api/plates.ts            reportSighting / createPlateDetection / updatePlateDetection
 src/plates/plateParser.ts    Extracción y corrección de placas colombianas
 src/plates/PlateTracker.ts   Confirmación por lecturas repetidas y cooldown
 src/plates/usePlateScanner.ts Orquesta OCR → confirmación → consulta → alerta
 src/screens/ScannerScreen.tsx Cámara + OCR en tiempo real
 src/camera/                  Selección de cámara (celular / USB externa)
+src/fixed/                   Lugar configurado para el modo cámara fija
+src/location/                Ubicación GPS del celular
+src/components/FixedSiteSetup.tsx Configuración de la cámara fija
 src/components/WantedAlert.tsx Alerta de vehículo buscado
 ```

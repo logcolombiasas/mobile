@@ -18,9 +18,34 @@ export interface PlateCheckResult {
 
 export type DetectionStatus = 'alerta' | 'en_gestion' | 'capturado' | 'falso_positivo';
 
+/** Desde dónde se leyó la placa: celular de un operario o cámara fija (ej. parqueadero) */
+export type SourceType = 'movil' | 'fija';
+
+export interface SightingContext {
+  sourceType: SourceType;
+  sourceName?: string;
+  locationName?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
 const CHECK_PLATE = /* GraphQL */ `
   query CheckPlate($plate: String!) {
     checkPlate(plate: $plate) {
+      found plate id vehicleType brand line color modelYear reason priority notes
+    }
+  }
+`;
+
+const REPORT_SIGHTING = /* GraphQL */ `
+  mutation ReportSighting(
+    $plate: String!, $latitude: Float, $longitude: Float, $locationName: String,
+    $sourceType: String, $sourceName: String, $rawText: String
+  ) {
+    reportSighting(
+      plate: $plate, latitude: $latitude, longitude: $longitude, locationName: $locationName,
+      sourceType: $sourceType, sourceName: $sourceName, rawText: $rawText
+    ) {
       found plate id vehicleType brand line color modelYear reason priority notes
     }
   }
@@ -50,12 +75,31 @@ export async function checkPlate(plate: string): Promise<PlateCheckResult> {
   return data.checkPlate;
 }
 
+/**
+ * Verifica la placa contra el listado y la guarda en el historial de lecturas
+ * (endpoint `reportSighting`), esté o no en el listado.
+ */
+export async function reportSighting(plate: string, rawText: string, ctx: SightingContext): Promise<PlateCheckResult> {
+  const data = await run<{ reportSighting: PlateCheckResult }>(REPORT_SIGHTING, {
+    plate,
+    rawText,
+    sourceType: ctx.sourceType,
+    sourceName: ctx.sourceName,
+    locationName: ctx.locationName,
+    latitude: ctx.latitude,
+    longitude: ctx.longitude,
+  });
+  return data.reportSighting;
+}
+
 export async function createDetection(input: {
   plate: string;
   rawText?: string;
   wantedPlateId?: string | null;
   latitude?: number;
   longitude?: number;
+  locationName?: string;
+  sourceType?: SourceType;
   detectedBy?: string;
 }): Promise<string | undefined> {
   const data = await run<{ createPlateDetection: { id: string } }>(CREATE_DETECTION, {

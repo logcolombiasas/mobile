@@ -10,7 +10,7 @@ import { UnauthorizedScreen } from './src/screens/UnauthorizedScreen';
 import { colors } from './src/theme/colors';
 
 function Root() {
-  const { state, canScan } = useAuth();
+  const { state, canScan, mode } = useAuth();
 
   if (state.status === 'loading') {
     return (
@@ -20,8 +20,8 @@ function Root() {
     );
   }
   if (state.status !== 'signedIn') return <LoginScreen />;
-  if (!canScan) return <UnauthorizedScreen />;
-  return <ScannerScreen />;
+  if (!canScan || !mode) return <UnauthorizedScreen />;
+  return <ScannerScreen mode={mode} />;
 }
 
 export default function App() {

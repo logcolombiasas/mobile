@@ -1,17 +1,23 @@
 import { ComponentType, useCallback, useEffect, useMemo, useState } from 'react';
-import { AppState, Linking, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AppState, Linking, Modal, Pressable, StyleSheet, Text, TextInput, Vibration, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useKeepAwake } from 'expo-keep-awake';
-import * as Location from 'expo-location';
+import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 import { type CameraViewProps, useCameraPermission } from 'react-native-vision-camera';
 import { Camera, type Text as OcrResult, type TextRecognitionOptions } from 'react-native-vision-camera-ocr-plus';
-import { useAuth } from '../auth/AuthContext';
+import { createDetection, type SightingContext } from '../api/plates';
+import { type ScanMode, useAuth } from '../auth/AuthContext';
 import { useScannerCamera } from '../camera/useScannerCamera';
+import { FixedSiteSetup } from '../components/FixedSiteSetup';
 import { Button, PlateBadge } from '../components/ui';
 import { WantedAlert } from '../components/WantedAlert';
+import { useFixedSite } from '../fixed/useFixedSite';
+import { useCurrentLocation } from '../location/useCurrentLocation';
 import { normalizeText } from '../plates/plateParser';
 import { usePlateScanner, WantedHit } from '../plates/usePlateScanner';
 import { colors } from '../theme/colors';
+
+const MAX_FIXED_ALERTS = 5;
 
 // El <Camera> del plugin OCR reenvía las props al <Camera> de VisionCamera (style, gestos, torch),
 // pero sus tipos solo declaran las props del hook useCamera.
@@ -21,10 +27,22 @@ const OcrCamera = Camera as unknown as ComponentType<CameraViewProps & {
   callback: (data: unknown) => void;
 }>;
 
-export function ScannerScreen() {
+/**
+ * Escáner de placas.
+ *  - mode 'movil': operario con el celular; alerta a pantalla completa.
+ *  - mode 'fija': dispositivo instalado en un lugar (ej. parqueadero); escanea de forma
+ *    continua, registra la detección y notifica al administrador sin esperar a nadie.
+ */
+export function ScannerScreen({ mode }: { mode: ScanMode }) {
   useKeepAwake();
+  const fixed = mode === 'fija';
   const { state, signOut } = useAuth();
   const email = state.status === 'signedIn' ? state.email : '';
+  const { site, loaded: siteLoaded, saveSite } = useFixedSite();
+  const [siteEditor, setSiteEditor] = useState(false);
+  const [fixedAlerts, setFixedAlerts] = useState<(WantedHit & { saved: boolean })[]>([]);
+  const alarm = useAudioPlayer(require('../../assets/sounds/alarm.wav'));
+  const getCoords = useCurrentLocation(!fixed);
   const { device, options: cameraOptions, current: currentCamera, selectCamera } = useScannerCamera();
   const [cameraPicker, setCameraPicker] = useState(false);
   const { hasPermission, canRequestPermission, requestPermission } = useCameraPermission();
@@ -35,10 +53,60 @@ export function ScannerScreen() {
   const [alerts, setAlerts] = useState<WantedHit[]>([]);
   const [manual, setManual] = useState('');
 
+  const getContext = useCallback((): SightingContext => {
+    if (fixed) {
+      return {
+        sourceType: 'fija',
+        sourceName: email,
+        locationName: site?.name,
+        latitude: site?.latitude,
+        longitude: site?.longitude,
+      };
+    }
+    const coords = getCoords();
+    return {
+      sourceType: 'movil',
+      sourceName: email,
+      latitude: coords?.latitude,
+      longitude: coords?.longitude,
+    };
+  }, [fixed, email, site, getCoords]);
+
+  /** Cámara fija: registra la detección (notifica al admin) y sigue escaneando */
+  const onFixedHit = useCallback(async (hit: WantedHit) => {
+    try {
+      setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
+      alarm.seekTo(0);
+      alarm.play();
+    } catch {}
+    Vibration.vibrate(800);
+    let saved = false;
+    try {
+      await createDetection({
+        plate: hit.result.plate,
+        rawText: hit.rawText,
+        wantedPlateId: hit.result.id,
+        latitude: hit.context.latitude,
+        longitude: hit.context.longitude,
+        locationName: hit.context.locationName,
+        sourceType: 'fija',
+        detectedBy: email,
+      });
+      saved = true;
+    } catch (error) {
+      console.warn('No se pudo registrar la detección', error);
+    }
+    setFixedAlerts(prev => [{ ...hit, saved }, ...prev].slice(0, MAX_FIXED_ALERTS));
+  }, [alarm, email]);
+
   const onWanted = useCallback((hit: WantedHit) => {
+    if (fixed) {
+      onFixedHit(hit);
+      return;
+    }
     setAlerts(prev => (prev.some(a => a.result.plate === hit.result.plate) ? prev : [...prev, hit]));
-  }, []);
-  const { onText, verifyManual, recent, queries, networkError, lastSeen } = usePlateScanner(onWanted);
+  }, [fixed, onFixedHit]);
+  const { onText, verifyManual, recent, queries, networkError, lastSeen } = usePlateScanner(onWanted, getContext, mode);
 
   // Las opciones deben ser estables: el plugin recrea el reconocedor si cambian
   const ocrOptions = useMemo(() => ({ language: 'latin' as const, frameSkipThreshold: 5 }), []);
@@ -46,12 +114,12 @@ export function ScannerScreen() {
 
   useEffect(() => {
     if (canRequestPermission) requestPermission();
-    Location.requestForegroundPermissionsAsync().catch(() => {});
     const sub = AppState.addEventListener('change', s => setAppActive(s === 'active'));
     return () => sub.remove();
   }, []);
 
-  const scanning = hasPermission && !!device && !paused && appActive && alerts.length === 0;
+  // En modo fijo no se detiene con las alertas; solo necesita el lugar configurado
+  const scanning = hasPermission && !!device && !paused && appActive && (fixed ? !!site : alerts.length === 0);
 
   if (!hasPermission) {
     return (
@@ -91,9 +159,14 @@ export function ScannerScreen() {
         {/* Encabezado */}
         <View style={styles.topBar}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.brand}>Logcolombia Placas</Text>
-            <Text style={styles.email} numberOfLines={1}>{email}</Text>
+            <Text style={styles.brand}>{fixed ? '📹 Cámara fija' : 'Logcolombia Placas'}</Text>
+            <Text style={styles.email} numberOfLines={1}>{fixed ? site?.name ?? 'Sin configurar' : email}</Text>
           </View>
+          {fixed && (
+            <Pressable style={styles.iconBtn} onPress={() => setSiteEditor(true)}>
+              <Text style={styles.iconText}>⚙️</Text>
+            </Pressable>
+          )}
           <Pressable style={styles.iconBtn} onPress={() => setCameraPicker(true)}>
             <Text style={styles.iconText}>📷</Text>
           </Pressable>
@@ -123,6 +196,27 @@ export function ScannerScreen() {
         {networkError && (
           <View style={styles.networkBanner}>
             <Text style={styles.networkText}>Sin conexión con el servidor. Reintentando en la próxima lectura…</Text>
+          </View>
+        )}
+        {fixed && fixedAlerts.length > 0 && (
+          <View style={styles.fixedAlerts}>
+            <View style={styles.fixedAlertsHeader}>
+              <Text style={styles.fixedAlertsTitle}>🚨 Vehículos del listado detectados</Text>
+              <Pressable onPress={() => setFixedAlerts([])}>
+                <Text style={styles.fixedAlertsClear}>Limpiar</Text>
+              </Pressable>
+            </View>
+            {fixedAlerts.map(a => (
+              <View key={a.result.plate + a.at} style={styles.fixedAlertItem}>
+                <PlateBadge plate={a.result.plate} size="sm" />
+                <Text style={styles.fixedAlertText} numberOfLines={1}>
+                  {[a.result.brand, a.result.color].filter(Boolean).join(' ') || a.result.reason}
+                </Text>
+                <Text style={styles.fixedAlertTime}>
+                  {new Date(a.at).toLocaleTimeString()} {a.saved ? '· notificado' : '· sin enviar'}
+                </Text>
+              </View>
+            ))}
           </View>
         )}
 
@@ -200,7 +294,15 @@ export function ScannerScreen() {
         </Pressable>
       </Modal>
 
-      {alerts[0] && (
+      {fixed && siteLoaded && (!site || siteEditor) && (
+        <FixedSiteSetup
+          site={site}
+          onSave={next => { saveSite(next); setSiteEditor(false); }}
+          onCancel={() => setSiteEditor(false)}
+        />
+      )}
+
+      {!fixed && alerts[0] && (
         <WantedAlert
           key={alerts[0].result.plate + alerts[0].at}
           hit={alerts[0]}
@@ -239,6 +341,13 @@ const styles = StyleSheet.create({
   sheetItemText: { flex: 1, fontSize: 16, color: colors.text },
   sheetCheck: { fontSize: 18, color: colors.primary, fontWeight: '800' },
   sheetHint: { fontSize: 12, color: colors.muted, marginTop: 8 },
+  fixedAlerts: { marginHorizontal: 16, marginTop: 8, backgroundColor: 'rgba(220,38,38,.92)', borderRadius: 12, padding: 10, gap: 6 },
+  fixedAlertsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  fixedAlertsTitle: { color: '#fff', fontWeight: '800' },
+  fixedAlertsClear: { color: '#fee2e2', fontWeight: '600', fontSize: 12 },
+  fixedAlertItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  fixedAlertText: { color: '#fff', flex: 1, fontSize: 12 },
+  fixedAlertTime: { color: '#fee2e2', fontSize: 11 },
   networkBanner: { marginHorizontal: 16, marginTop: 8, backgroundColor: '#f59e0b', borderRadius: 8, padding: 8 },
   networkText: { color: '#111', fontWeight: '600', fontSize: 12 },
   guideWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },

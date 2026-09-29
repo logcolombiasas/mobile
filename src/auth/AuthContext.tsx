@@ -8,8 +8,12 @@ import {
   signOut as amplifySignOut,
 } from 'aws-amplify/auth';
 
-/** Roles que pueden usar la app de escaneo */
-export const ALLOWED_GROUPS = ['operario', 'admin'];
+/** Roles que escanean con el celular en la calle */
+export const MOBILE_GROUPS = ['operario', 'admin'];
+/** Cuentas de dispositivos fijos (celular/cámara instalada en un parqueadero) */
+export const FIXED_GROUPS = ['camara'];
+
+export type ScanMode = 'movil' | 'fija';
 
 type AuthState =
   | { status: 'loading' }
@@ -20,6 +24,8 @@ type AuthState =
 interface AuthContextValue {
   state: AuthState;
   canScan: boolean;
+  /** 'movil' para operarios, 'fija' para cuentas de cámara fija */
+  mode: ScanMode | null;
   signIn: (email: string, password: string) => Promise<void>;
   confirmNewPassword: (password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -89,13 +95,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState({ status: 'signedOut' });
   }, []);
 
+  const groups = state.status === 'signedIn' ? state.groups : [];
+  const mode: ScanMode | null = groups.some(g => MOBILE_GROUPS.includes(g))
+    ? 'movil'
+    : groups.some(g => FIXED_GROUPS.includes(g)) ? 'fija' : null;
+
   const value = useMemo<AuthContextValue>(() => ({
     state,
-    canScan: state.status === 'signedIn' && state.groups.some(g => ALLOWED_GROUPS.includes(g)),
+    canScan: mode !== null,
+    mode,
     signIn,
     confirmNewPassword,
     signOut,
-  }), [state, signIn, confirmNewPassword, signOut]);
+  }), [state, mode, signIn, confirmNewPassword, signOut]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
