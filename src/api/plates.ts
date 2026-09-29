@@ -27,6 +27,10 @@ export interface SightingContext {
   locationName?: string;
   latitude?: number;
   longitude?: number;
+  /** Dirección aproximada (calle y número) */
+  address?: string;
+  /** Precisión del GPS en metros */
+  accuracy?: number;
 }
 
 const CHECK_PLATE = /* GraphQL */ `
@@ -40,11 +44,11 @@ const CHECK_PLATE = /* GraphQL */ `
 const REPORT_SIGHTING = /* GraphQL */ `
   mutation ReportSighting(
     $plate: String!, $latitude: Float, $longitude: Float, $locationName: String,
-    $sourceType: String, $sourceName: String, $rawText: String
+    $address: String, $accuracy: Float, $sourceType: String, $sourceName: String, $rawText: String
   ) {
     reportSighting(
       plate: $plate, latitude: $latitude, longitude: $longitude, locationName: $locationName,
-      sourceType: $sourceType, sourceName: $sourceName, rawText: $rawText
+      address: $address, accuracy: $accuracy, sourceType: $sourceType, sourceName: $sourceName, rawText: $rawText
     ) {
       found plate id vehicleType brand line color modelYear reason priority notes
     }
@@ -88,6 +92,8 @@ export async function reportSighting(plate: string, rawText: string, ctx: Sighti
     locationName: ctx.locationName,
     latitude: ctx.latitude,
     longitude: ctx.longitude,
+    address: ctx.address,
+    accuracy: ctx.accuracy,
   });
   return data.reportSighting;
 }
@@ -99,6 +105,8 @@ export async function createDetection(input: {
   latitude?: number;
   longitude?: number;
   locationName?: string;
+  address?: string;
+  accuracy?: number;
   sourceType?: SourceType;
   detectedBy?: string;
 }): Promise<string | undefined> {

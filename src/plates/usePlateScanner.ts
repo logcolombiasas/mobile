@@ -35,7 +35,7 @@ export interface WantedHit {
  */
 export function usePlateScanner(
   onWanted: (hit: WantedHit) => void,
-  getContext: () => SightingContext,
+  getContext: () => Promise<SightingContext> | SightingContext,
   sourceType: SourceType = 'movil',
 ) {
   const timings = SCAN_TIMINGS[sourceType];
@@ -60,7 +60,8 @@ export function usePlateScanner(
     inFlight.current.add(plate);
     setQueries(q => q + 1);
     try {
-      const context = getContextRef.current();
+      // Espera la ubicación (GPS reciente) para que cada lectura quede con su posición exacta
+      const context = await getContextRef.current();
       const result = await reportSighting(plate, rawText, context);
       setNetworkError(false);
       setRecent(prev => [{ plate, found: result.found, at: Date.now() }, ...prev.filter(r => r.plate !== plate)].slice(0, MAX_RECENT));

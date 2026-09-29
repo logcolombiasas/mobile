@@ -55,6 +55,8 @@ export function WantedAlert({ hit, email, onClose }: { hit: WantedHit; email: st
           latitude: coords?.latitude,
           longitude: coords?.longitude,
           locationName: context.locationName,
+          address: context.address,
+          accuracy: context.accuracy,
           sourceType: context.sourceType,
           detectedBy: email,
         });

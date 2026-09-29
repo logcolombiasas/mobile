@@ -12,6 +12,7 @@ import { FixedSiteSetup } from '../components/FixedSiteSetup';
 import { Button, PlateBadge } from '../components/ui';
 import { WantedAlert } from '../components/WantedAlert';
 import { useFixedSite } from '../fixed/useFixedSite';
+import { gpsLabel } from '../location/address';
 import { useCurrentLocation } from '../location/useCurrentLocation';
 import { normalizeText } from '../plates/plateParser';
 import { usePlateScanner, WantedHit } from '../plates/usePlateScanner';
@@ -42,7 +43,7 @@ export function ScannerScreen({ mode }: { mode: ScanMode }) {
   const [siteEditor, setSiteEditor] = useState(false);
   const [fixedAlerts, setFixedAlerts] = useState<(WantedHit & { saved: boolean })[]>([]);
   const alarm = useAudioPlayer(require('../../assets/sounds/alarm.wav'));
-  const getCoords = useCurrentLocation(!fixed);
+  const { getFix, current: gpsFix, permission: gpsPermission } = useCurrentLocation(!fixed);
   const { device, options: cameraOptions, current: currentCamera, selectCamera } = useScannerCamera();
   const [cameraPicker, setCameraPicker] = useState(false);
   const { hasPermission, canRequestPermission, requestPermission } = useCameraPermission();
@@ -53,24 +54,29 @@ export function ScannerScreen({ mode }: { mode: ScanMode }) {
   const [alerts, setAlerts] = useState<WantedHit[]>([]);
   const [manual, setManual] = useState('');
 
-  const getContext = useCallback((): SightingContext => {
+  /** Ubicación exacta que acompaña cada lectura en el historial */
+  const getContext = useCallback(async (): Promise<SightingContext> => {
     if (fixed) {
       return {
         sourceType: 'fija',
         sourceName: email,
         locationName: site?.name,
+        address: site?.address,
         latitude: site?.latitude,
         longitude: site?.longitude,
+        accuracy: site?.accuracy,
       };
     }
-    const coords = getCoords();
+    const fix = await getFix();
     return {
       sourceType: 'movil',
       sourceName: email,
-      latitude: coords?.latitude,
-      longitude: coords?.longitude,
+      latitude: fix?.latitude,
+      longitude: fix?.longitude,
+      accuracy: fix?.accuracy,
+      address: fix?.address,
     };
-  }, [fixed, email, site, getCoords]);
+  }, [fixed, email, site, getFix]);
 
   /** Cámara fija: registra la detección (notifica al admin) y sigue escaneando */
   const onFixedHit = useCallback(async (hit: WantedHit) => {
@@ -89,6 +95,8 @@ export function ScannerScreen({ mode }: { mode: ScanMode }) {
         latitude: hit.context.latitude,
         longitude: hit.context.longitude,
         locationName: hit.context.locationName,
+        address: hit.context.address,
+        accuracy: hit.context.accuracy,
         sourceType: 'fija',
         detectedBy: email,
       });
@@ -188,6 +196,16 @@ export function ScannerScreen({ mode }: { mode: ScanMode }) {
             {scanning ? 'Escaneando placas...' : paused ? 'En pausa' : 'Cámara detenida'} · {queries} consultas
           </Text>
         </View>
+        {!fixed && (
+          <Pressable
+            style={[styles.cameraChip, !gpsPermission && styles.gpsWarning]}
+            onPress={() => { if (!gpsPermission) Linking.openSettings(); }}
+          >
+            <Text style={styles.cameraChipText} numberOfLines={1}>
+              {gpsLabel(gpsFix, gpsPermission)}{!gpsPermission ? ' · tocar para activar' : ''}
+            </Text>
+          </Pressable>
+        )}
         {currentCamera && (
           <Pressable onPress={() => setCameraPicker(true)} style={styles.cameraChip}>
             <Text style={styles.cameraChipText}>
@@ -336,6 +354,7 @@ const styles = StyleSheet.create({
     borderRadius: 12, backgroundColor: 'rgba(0,0,0,.5)',
   },
   cameraChipText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  gpsWarning: { backgroundColor: 'rgba(245,158,11,.95)', maxWidth: '92%' },
   sheetBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,.5)' },
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 36, gap: 6 },
   sheetTitle: { fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: 6 },

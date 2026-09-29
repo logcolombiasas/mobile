@@ -6,6 +6,8 @@ export interface FixedSite {
   name: string;
   latitude?: number;
   longitude?: number;
+  accuracy?: number;
+  address?: string;
 }
 
 const STORAGE_KEY = 'fixed.site';

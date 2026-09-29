@@ -15,8 +15,10 @@ export function FixedSiteSetup({ site, onSave, onCancel }: {
   onCancel?: () => void;
 }) {
   const [name, setName] = useState(site?.name ?? '');
-  const [coords, setCoords] = useState(
-    site?.latitude != null && site?.longitude != null ? { latitude: site.latitude, longitude: site.longitude } : null,
+  const [coords, setCoords] = useState<{ latitude: number; longitude: number; accuracy?: number; address?: string } | null>(
+    site?.latitude != null && site?.longitude != null
+      ? { latitude: site.latitude, longitude: site.longitude, accuracy: site.accuracy, address: site.address }
+      : null,
   );
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState('');
@@ -26,7 +28,7 @@ export function FixedSiteSetup({ site, onSave, onCancel }: {
     setError('');
     const position = await getPositionOnce();
     setLocating(false);
-    if (position) setCoords({ latitude: position.latitude, longitude: position.longitude });
+    if (position) setCoords(position);
     else setError('No fue posible obtener la ubicación. Revisa el permiso de ubicación y el GPS.');
   };
 
@@ -54,7 +56,10 @@ export function FixedSiteSetup({ site, onSave, onCancel }: {
             loading={locating}
           />
           <Text style={styles.coords}>
-            {coords ? `Ubicación: ${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}` : 'Sin ubicación GPS (opcional)'}
+            {coords
+              ? `${coords.address ? coords.address + '\n' : ''}${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}` +
+                (coords.accuracy != null ? ` (±${Math.round(coords.accuracy)} m)` : '')
+              : 'Toma la ubicación GPS en el sitio donde quedará instalada la cámara (obligatorio)'}
           </Text>
           {!!error && <Text style={styles.error}>{error}</Text>}
 
@@ -62,7 +67,7 @@ export function FixedSiteSetup({ site, onSave, onCancel }: {
             {onCancel && site && <Button title="Cancelar" variant="secondary" onPress={onCancel} style={{ flex: 1 }} />}
             <Button
               title="Guardar e iniciar"
-              disabled={name.trim().length < 3}
+              disabled={name.trim().length < 3 || !coords}
               onPress={() => onSave({ name: name.trim(), ...(coords ?? {}) })}
               style={{ flex: 1 }}
             />
